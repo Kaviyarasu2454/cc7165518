@@ -8,10 +8,17 @@ function BookForm({ onAdd, initialData }) {
     year: "",
     description: "",
     available: true,
+    id: Date.now(), // ✅ Add unique ID by default
   });
 
   useEffect(() => {
-    if (initialData) setForm(initialData);
+    if (initialData) {
+      setForm({
+        ...initialData,
+        id: initialData.id || Date.now(), // ✅ Make sure ID exists
+        available: initialData.available ?? true, // ✅ Default to true if undefined
+      });
+    }
   }, [initialData]);
 
   const handleChange = (e) => {
@@ -24,9 +31,20 @@ function BookForm({ onAdd, initialData }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.title || !form.author)
+    if (!form.title || !form.author) {
       return alert("Title and Author are required");
-    onAdd({ ...form, id: initialData?.id || Date.now() });
+    }
+
+    // ✅ Ensure 'id' and 'available' exist
+    const finalData = {
+      ...form,
+      id: form.id || Date.now(),
+      available: form.available ?? true,
+    };
+
+    onAdd(finalData);
+
+    // 🔁 Reset the form after submission
     setForm({
       title: "",
       author: "",
@@ -34,6 +52,7 @@ function BookForm({ onAdd, initialData }) {
       year: "",
       description: "",
       available: true,
+      id: Date.now(), // ✅ New ID for new entry
     });
   };
 
@@ -45,8 +64,9 @@ function BookForm({ onAdd, initialData }) {
       <h2 className="text-xl font-semibold mb-4">
         {initialData ? "Edit Book" : "Add New Book"}
       </h2>
+
       <input
-        className="w-full p-2 border mb-3 text-black"
+        className="w-full p-2 border mb-3 text-white"
         type="text"
         name="title"
         placeholder="Book Title"
@@ -55,7 +75,7 @@ function BookForm({ onAdd, initialData }) {
         required
       />
       <input
-        className="w-full p-2 border mb-3 text-black"
+        className="w-full p-2 border mb-3 text-white"
         type="text"
         name="author"
         placeholder="Author"
@@ -64,7 +84,7 @@ function BookForm({ onAdd, initialData }) {
         required
       />
       <input
-        className="w-full p-2 border mb-3 text-black"
+        className="w-full p-2 border mb-3 text-white"
         type="text"
         name="genre"
         placeholder="Genre"
@@ -72,7 +92,7 @@ function BookForm({ onAdd, initialData }) {
         onChange={handleChange}
       />
       <input
-        className="w-full p-2 border mb-3 text-black"
+        className="w-full p-2 border mb-3 text-white"
         type="number"
         name="year"
         placeholder="Published Year"
@@ -80,13 +100,14 @@ function BookForm({ onAdd, initialData }) {
         onChange={handleChange}
       />
       <textarea
-        className="w-full p-2 border mb-3 text-black"
+        className="w-full p-2 border mb-3 text-white"
         name="description"
         placeholder="Description"
         value={form.description}
         onChange={handleChange}
         rows="3"
       ></textarea>
+
       <label className="block mb-3">
         <input
           type="checkbox"
