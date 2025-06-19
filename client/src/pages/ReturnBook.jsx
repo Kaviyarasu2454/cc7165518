@@ -1,28 +1,34 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import MessageModal from "../components/MessageModal"; // Import the new modal component
+import MessageModal from "../components/MessageModal";
+import { useAuth } from '../context/AuthContext'; // Import useAuth to get token
 
 // Constants for fine calculation
-const GRACE_PERIOD_DAYS = 15; // Number of days allowed before a fine is applied
-const FINE_PER_DAY = 10; // Fine amount in rupees per day
+const GRACE_PERIOD_DAYS = 15;
+const FINE_PER_DAY = 10;
 
 function ReturnBook() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth(); // Get user (which contains the token)
 
   const [book, setBook] = useState(null);
   const [returnDate, setReturnDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [modalMessage, setModalMessage] = useState(null); // State to control the MessageModal
+  const [modalMessage, setModalMessage] = useState(null);
 
   useEffect(() => {
     const fetchBook = async () => {
       try {
         setLoading(true);
         setError(null);
-        // Fetch book details from backend
-        const res = await fetch(`http://localhost:5074/api/books/${id}`);
+        // Use VITE_BACKEND_URL for the deployed backend
+        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/books/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${user.token}` // Send token for protected route
+          }
+        });
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({ message: "Unknown error" }));
           throw new Error(`HTTP error! Status: ${res.status}, Message: ${errorData.message || res.statusText}`);
@@ -32,42 +38,43 @@ function ReturnBook() {
       } catch (err) {
         console.error("Error fetching book:", err);
         setError(`Failed to load book for return: ${err.message}`);
-        navigate('/'); // Navigate home if error
+        navigate('/home'); // Navigate to home if error
       } finally {
         setLoading(false);
       }
     };
-    fetchBook();
-  }, [id, navigate]); // Depend on id and navigate
+
+    if (user && user.token) { // Only fetch if user and token exist
+      fetchBook();
+    } else {
+      setLoading(false);
+    }
+  }, [id, navigate, user]);
 
   const handleReturn = async () => {
     if (!returnDate) {
-      setError("Please enter return date to proceed."); // Set error for UI display
+      setError("Please enter return date to proceed.");
       return;
     }
 
-    let finalMessage = "Book returned successfully!"; // Default success message
+    let finalMessage = "Book returned successfully!";
     let fineAmount = 0;
 
-    // Check if borrowInfo exists before attempting calculations
     const borrowDateStr = book?.borrowInfo?.borrowDate;
     if (borrowDateStr) {
       const borrowDateObj = new Date(borrowDateStr);
       const returnDateObj = new Date(returnDate);
 
-      // Validate dates for calculation
       if (isNaN(borrowDateObj.getTime()) || isNaN(returnDateObj.getTime())) {
           setError("Invalid borrow or return date. Cannot calculate fine.");
           return;
       }
 
-      // Calculate the difference in days
       const diffTime = Math.abs(returnDateObj.getTime() - borrowDateObj.getTime());
-      const daysBorrowed = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // Use ceil to count partial days as full days
+      const daysBorrowed = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
       console.log(`Book was borrowed for ${daysBorrowed} days.`);
 
-      // Calculate fine if grace period is exceeded
       if (daysBorrowed > GRACE_PERIOD_DAYS) {
         const daysExceeded = daysBorrowed - GRACE_PERIOD_DAYS;
         fineAmount = daysExceeded * FINE_PER_DAY;
@@ -78,29 +85,32 @@ function ReturnBook() {
     }
 
     try {
-      const res = await fetch(`http://localhost:5074/api/books/${id}/return`, {
+      // Use VITE_BACKEND_URL for the deployed backend
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/books/${id}/return`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ available: true, borrowInfo: null }), // Clear borrowInfo on return
+        headers: { 
+          "Content-Type": "application/json",
+          'Authorization': `Bearer ${user.token}` // Send token for protected route
+        },
+        body: JSON.stringify({ available: true, borrowInfo: null }),
       });
 
       if (res.ok) {
-        setModalMessage(finalMessage); // Set modal message based on fine calculation
+        setModalMessage(finalMessage);
       } else {
         const errorData = await res.json().catch(() => ({ message: "Unknown error" }));
         console.error("Failed to return book:", errorData);
-        setError(`Failed to return book: ${errorData.message || res.statusText}`); // Display error
+        setError(`Failed to return book: ${errorData.message || res.statusText}`);
       }
     } catch (err) {
       console.error("Return error:", err);
-      setError(`Network error during return: ${err.message}`); // Display network error
+      setError(`Network error during return: ${err.message}`);
     }
   };
 
-  // Function to close the modal and then navigate to the home page
   const handleModalClose = () => {
-    setModalMessage(null); // Clear the message to hide the modal
-    navigate("/"); // Navigate back to the home page
+    setModalMessage(null);
+    navigate("/home"); // Navigate to home after modal is closed
   };
 
 
@@ -114,7 +124,7 @@ function ReturnBook() {
             <div className="w-full max-w-md bg-[#1e293b] text-white rounded-xl p-6 shadow-md text-center">
                 <p className="text-red-400 text-lg mb-4">{error}</p>
                 <button
-                    onClick={() => navigate('/')}
+                    onClick={() => navigate('/home')} // Navigate to home
                     className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded"
                 >
                     Go Home
@@ -128,7 +138,6 @@ function ReturnBook() {
     return <p className="text-center text-gray-300 mt-10">Book not found for returning.</p>;
   }
 
-  // Input styling from BookForm for consistency
   const inputClassName = "w-full p-3 border border-[#334155] rounded-lg mb-4 bg-[#0f172a] text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500";
 
 
@@ -137,7 +146,6 @@ function ReturnBook() {
       <div className="w-full max-w-md bg-[#1e293b] text-white rounded-xl p-6 shadow-md">
         <h2 className="text-2xl font-semibold mb-4 text-center">Return: {book.title}</h2>
 
-        {/* Display borrow info (using optional chaining for safety) */}
         <p className="text-sm text-gray-300 mb-2"><strong>Name:</strong> {book.borrowInfo?.name || "N/A"}</p>
         <p className="text-sm text-gray-300 mb-2"><strong>Department:</strong> {book.borrowInfo?.department || "N/A"}</p>
         <p className="text-sm text-gray-300 mb-2"><strong>Section:</strong> {book.borrowInfo?.section || "N/A"}</p>
@@ -148,7 +156,6 @@ function ReturnBook() {
                 : "N/A"}
         </p>
 
-        {/* Return Date input */}
         <input 
           className={inputClassName} 
           type="date" 
@@ -162,7 +169,6 @@ function ReturnBook() {
         </button>
       </div>
 
-      {/* Render the MessageModal if modalMessage has content */}
       <MessageModal message={modalMessage} onClose={handleModalClose} />
     </div>
   );

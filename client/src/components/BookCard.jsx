@@ -1,37 +1,39 @@
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from '../context/AuthContext'; // Import useAuth to get the authentication token
 
 function BookCard({ book, onDelete }) {
   const navigate = useNavigate();
+  const { user } = useAuth(); // Get the authenticated user object, which contains the token
 
   const handleDelete = async () => {
-    // Replaced window.confirm with a console log.
-    // In a production app, use a custom confirmation modal here.
     console.log("Confirming delete for book:", book.title);
-    const confirmDelete = true; // For testing, assume confirmed. Remove in production.
+    const confirmDelete = true; // Replace with a custom modal in production
 
     if (!confirmDelete) return;
 
     try {
-      // Use the correct backend URL and book's _id for deletion
-      const res = await fetch(`http://localhost:5074/api/books/${book._id}`, {
+      // Use the VITE_BACKEND_URL from environment variables for dynamic URL
+      // Add Authorization header with the user's token, as book routes are protected
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/books/${book._id}`, {
         method: "DELETE",
+        headers: {
+          'Authorization': `Bearer ${user?.token}`, // Send the token if user and token exist
+        },
       });
 
-      if (res.ok) { // Check if the response status is 2xx
+      if (res.ok) { // Check if the response status is 2xx (e.g., 200 OK)
         console.log("Book deleted successfully:", book.title);
-        onDelete(book._id); // Pass the ID back to the parent to update state
+        onDelete(book._id); // Inform the parent component (Home.jsx) to update its state
       } else {
         const errorData = await res.json().catch(() => ({ message: "Unknown error" }));
         console.error("Failed to delete the book:", errorData);
-        // Replace alert with a custom toast or message
-        // alert(`Failed to delete the book: ${errorData.message}`);
-        console.warn(`Failed to delete the book: ${errorData.message || res.statusText}`);
+        // Log a warning to the console, replace with a user-friendly toast/modal in a real app
+        console.warn(`Failed to delete the book: ${errorData.message || res.statusText}. Please ensure you are logged in.`);
       }
     } catch (err) {
       console.error("Delete error (network or unexpected):", err);
-      // Replace alert with a custom toast or message
-      // alert("Network error during delete. Please try again.");
-      console.warn("Network error during delete. Please try again.");
+      // Log a warning to the console, replace with a user-friendly toast/modal in a real app
+      console.warn("Network error during delete. Please check your connection and ensure backend is running.");
     }
   };
 
@@ -47,16 +49,17 @@ function BookCard({ book, onDelete }) {
       </p>
 
       <div className="flex flex-col gap-2">
-        {/* Link to Edit Book page, using book._id */}
+        {/* Link to Edit Book page, using book._id and VITE_BACKEND_URL */}
         <Link
           to={`/edit/${book._id}`}
-          className="bg-black-500 hover:bg-blue-600 text-white text-center py-1 rounded transition duration-200" // Adjusted class for visibility
+          // FIX: Changed bg-black-500 to bg-blue-500 for better visibility
+          className="bg-blue-500 hover:bg-blue-600 text-white text-center py-1 rounded transition duration-200" 
         >
           ✏️ Edit
         </Link>
 
         {book.available ? (
-          // Link to Borrow Book page, using book._id
+          // Link to Borrow Book page, using book._id and VITE_BACKEND_URL
           <Link
             to={`/borrow-book/${book._id}`}
             className="bg-green-500 hover:bg-green-600 text-white text-center py-1 rounded transition duration-200"
@@ -64,7 +67,7 @@ function BookCard({ book, onDelete }) {
             📖 Borrow Book
           </Link>
         ) : (
-          // Link to Return Book page, using book._id
+          // Link to Return Book page, using book._id and VITE_BACKEND_URL
           <Link
             to={`/return-book/${book._id}`}
             className="bg-yellow-500 hover:bg-yellow-600 text-white text-center py-1 rounded transition duration-200"

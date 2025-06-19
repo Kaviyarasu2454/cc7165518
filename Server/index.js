@@ -9,24 +9,28 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 
 // Import the Book model 
-// The path must match your file structure: server/models/Books.js
-const Book = require("./models/Books"); 
+const Book = require("./models/Books"); // Assuming your book model is in models/Books.js
+// NEW: Import the User model
+const User = require("./models/User");
+
+// NEW: Import authentication routes and middleware
+const authRoutes = require("./routes/authRoutes"); 
+const { protect } = require("./middleware/authMiddleware");
 
 // Initialize the Express application
 const app = express();
 
 // Define the port the server will listen on
-// It uses the PORT from .env or defaults to 5074
 const PORT = process.env.PORT || 5074; 
 
 // --- Middleware ---
 
 // Configure CORS to explicitly allow requests from your frontend's origin
-// IMPORTANT FIX: Changed origin to http://localhost:5173 to match your frontend's current actual port.
+// IMPORTANT: Set to 5173 as per your current frontend port based on the error.
 app.use(cors({
-    origin: 'http://localhost:5173', // <--- THIS IS THE CRUCIAL CHANGE FOR YOUR CORS ERROR
-    methods: ['GET', 'POST', 'PUT', 'DELETE'], 
-    credentials: true 
+    origin: 'http://localhost:5173', 
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
 }));
 
 // Middleware to parse JSON bodies from incoming requests
@@ -35,20 +39,17 @@ app.use(express.json());
 // --- MongoDB Connection ---
 
 mongoose
-    .connect(process.env.MONGO_URI, {
-        // These options are deprecated in newer Mongoose versions but generally harmless
-        // useNewUrlParser: true,      
-        // useUnifiedTopology: true,   
-    })
+    .connect(process.env.MONGO_URI, {})
     .then(() => {
         console.log("Connected to MongoDB");
     })
     .catch((error) => {
         console.error("Error connecting to MongoDB:", error);
-        // It's often better to let the server attempt to start even without DB connection
-        // and handle DB errors per request, but existing `process.exit(1)` is fine if intended
-        // process.exit(1); 
     });
+
+// --- Authentication Routes ---
+// All routes starting with /api/auth will use authRoutes (e.g., /api/auth/register, /api/auth/login)
+app.use("/api/auth", authRoutes); // NEW: Use authentication routes
 
 // --- API Routes for Books ---
 
@@ -57,30 +58,33 @@ app.get("/", (req, res) => {
     res.send("Book Management API is running!");
 });
 
-// GET all books
+// GET all books (accessible publicly without authentication)
+// You might later want to protect this too, but for now, it's public for the intro page
 app.get("/api/books", async (req, res) => {
     try {
-        const books = await Book.find(); // Fetch all books from the database
-        res.json(books); // Send them as JSON response
+        const books = await Book.find(); 
+        res.json(books); 
     } catch (error) {
         console.error("Error fetching books:", error);
         res.status(500).json({ message: "Failed to fetch books", error: error.message });
     }
 });
 
-// GET a single book by ID
-app.get("/api/books/:id", async (req, res) => {
+// NEW: Apply protection middleware to all subsequent routes (book CRUD, borrow, return)
+// This means any route defined *after* this line will require a valid JWT in the Authorization header.
+app.use(protect); 
+
+// GET a single book by ID (now protected)
+app.get("/api/books/:id", async (req, res) => { 
     try {
-        // Find a book by ID. Mongoose models have findById method
         const book = await Book.findById(req.params.id);
         if (book) {
-            res.json(book); // Send the found book
+            res.json(book);
         } else {
-            res.status(404).json({ message: "Book not found" }); // Book not found
+            res.status(404).json({ message: "Book not found" });
         }
     } catch (error) {
         console.error("Error fetching book by ID:", error);
-        // Handle CastError for invalid IDs (e.g., not a valid MongoDB ObjectId)
         if (error.name === 'CastError') {
             return res.status(400).json({ message: "Invalid book ID format" });
         }
@@ -88,15 +92,14 @@ app.get("/api/books/:id", async (req, res) => {
     }
 });
 
-// POST a new book
-app.post("/api/books", async (req, res) => {
+// POST a new book (now protected)
+app.post("/api/books", async (req, res) => { 
     try {
-        const newBook = new Book(req.body); // Create a new book document from request body
-        const savedBook = await newBook.save(); // Save the new book to the database
-        res.status(201).json({ message: "Book added successfully", book: savedBook }); // Respond with the created book and 201 status
+        const newBook = new Book(req.body); 
+        const savedBook = await newBook.save();
+        res.status(201).json({ message: "Book added successfully", book: savedBook });
     } catch (error) {
         console.error("Error adding book:", error);
-        // Handle validation errors (e.g., missing required fields like title, author)
         if (error.name === 'ValidationError') {
             return res.status(400).json({ message: error.message, errors: error.errors });
         }
@@ -104,14 +107,13 @@ app.post("/api/books", async (req, res) => {
     }
 });
 
-// PUT (Update) an existing book by ID
-app.put("/api/books/:id", async (req, res) => {
+// PUT (Update) an existing book by ID (now protected)
+app.put("/api/books/:id", async (req, res) => { 
     try {
-        // Find and update a book by ID. { new: true } returns the updated document.
         const updatedBook = await Book.findByIdAndUpdate(
             req.params.id,
             req.body,
-            { new: true, runValidators: true } // runValidators ensures schema validation on update
+            { new: true, runValidators: true }
         );
 
         if (updatedBook) {
@@ -131,10 +133,9 @@ app.put("/api/books/:id", async (req, res) => {
     }
 });
 
-// DELETE a book by ID
-app.delete("/api/books/:id", async (req, res) => {
+// DELETE a book by ID (now protected)
+app.delete("/api/books/:id", async (req, res) => { 
     try {
-        // Find and delete a book by ID
         const deletedBook = await Book.findByIdAndDelete(req.params.id);
         if (deletedBook) {
             res.json({ message: "Book deleted successfully", book: deletedBook });
@@ -150,10 +151,10 @@ app.delete("/api/books/:id", async (req, res) => {
     }
 });
 
-// PUT route for borrowing a book (mark as unavailable and save borrow info)
-app.put("/api/books/:id/borrow", async (req, res) => {
+// PUT route for borrowing a book (now protected)
+app.put("/api/books/:id/borrow", async (req, res) => { 
     try {
-        const { name, department, section, borrowDate } = req.body.borrowInfo; // Destructure borrowInfo
+        const { name, department, section, borrowDate } = req.body.borrowInfo; 
         if (!name || !department || !section || !borrowDate) {
             return res.status(400).json({ message: "Borrower information is incomplete." });
         }
@@ -161,8 +162,8 @@ app.put("/api/books/:id/borrow", async (req, res) => {
         const updatedBook = await Book.findByIdAndUpdate(
             req.params.id,
             {
-                available: false, // Mark as unavailable
-                borrowInfo: { name, department, section, borrowDate: new Date(borrowDate) } // Save borrow info
+                available: false,
+                borrowInfo: { name, department, section, borrowDate: new Date(borrowDate) } 
             },
             { new: true, runValidators: true }
         );
@@ -181,14 +182,14 @@ app.put("/api/books/:id/borrow", async (req, res) => {
     }
 });
 
-// PUT route for returning a book (mark as available and clear borrow info)
-app.put("/api/books/:id/return", async (req, res) => {
+// PUT route for returning a book (now protected)
+app.put("/api/books/:id/return", async (req, res) => { 
     try {
         const updatedBook = await Book.findByIdAndUpdate(
             req.params.id,
             {
-                available: true, // Mark as available
-                borrowInfo: null // Clear borrow information
+                available: true,
+                borrowInfo: null
             },
             { new: true, runValidators: true }
         );
@@ -215,7 +216,6 @@ app.use((req, res) => {
 
 // --- Start the Server ---
 
-// Listen for incoming requests on the specified port
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });

@@ -1,18 +1,26 @@
-import React, { useState, useEffect, useCallback } from 'react'; // Added useCallback
+import React, { useState, useEffect, useCallback } from 'react';
 import BookCard from '../components/BookCard';
+import { useAuth } from '../context/AuthContext'; // Import useAuth to get token
 
 function Home() {
   const [books, setBooks] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user, isAuthenticated } = useAuth(); // Get user (which contains the token) and isAuthenticated
 
-  // Memoized function to fetch books from the backend
   const fetchBooks = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch("http://localhost:5074/api/books"); // Use backend URL and port
+      // Only send Authorization header if user and token exist
+      // Note: GET /api/books is public in index.js, but it's good practice to send token if available
+      const headers = user && user.token ? { 'Authorization': `Bearer ${user.token}` } : {};
+
+      // Use VITE_BACKEND_URL from environment variables
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/books`, {
+        headers: headers
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
@@ -27,27 +35,27 @@ function Home() {
     } finally {
       setLoading(false);
     }
-  }, []); // No dependencies, so it only gets created once
+  }, [user]); // Depend on user, so it re-fetches when login state changes
 
-  // Fetch books on component mount
   useEffect(() => {
-    fetchBooks();
-  }, [fetchBooks]); // Depend on fetchBooks (which is memoized)
+    // Only attempt to fetch if user is logged in
+    if (isAuthenticated) { 
+      fetchBooks();
+    } else {
+      setLoading(false); // If not logged in, stop loading and show no books/login prompt
+      setBooks([]);
+    }
+  }, [isAuthenticated, fetchBooks]); // Depend on isAuthenticated and memoized fetchBooks
 
-  // Handle book deletion and trigger a re-fetch
   const handleDelete = useCallback(async (deletedBookId) => {
     // Optimistically remove the book from the UI
     setBooks((prevBooks) => prevBooks.filter((book) => book._id !== deletedBookId));
     console.log("Attempting to delete book with ID:", deletedBookId);
-
-    // No need for explicit fetch here, BookCard handles its own delete API call
-    // We just need to trigger a re-fetch of the list to ensure consistency.
-    // The BookCard's handleDelete already sends the DELETE request and updates the UI
-    // Here we just re-fetch the entire list from the backend to be safe.
+    
+    // Trigger a re-fetch of the list to ensure consistency after deletion
     fetchBooks();
-  }, [fetchBooks]); // Depend on fetchBooks
+  }, [fetchBooks]);
 
-  // Filter books based on search term
   const filteredBooks = books.filter((book) => {
     if (!book || !book.title || !book.author || !book.genre) return false;
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
@@ -86,7 +94,6 @@ function Home() {
   return (
     <div className="min-h-screen bg-[#0F172A] py-10 px-3 text-white">
       <div className="max-w-7xl mx-auto">
-        {/* 🔍 Search Input */}
         <div className="mb-8 text-center">
           <input
             type="text"
@@ -97,13 +104,11 @@ function Home() {
           />
         </div>
 
-        {/* 📚 Book Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredBooks.length === 0 ? (
             <p className="text-gray-300 text-center col-span-full text-lg">No books found. Add some!</p>
           ) : (
             filteredBooks.map((book) => (
-              // Ensure key uses book._id and pass onDelete handler
               <BookCard key={book._id} book={book} onDelete={handleDelete} />
             ))
           )}
