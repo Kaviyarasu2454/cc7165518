@@ -8,7 +8,7 @@ const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 
-// Import the Book model we just defined
+// Import the Book model 
 // The path must match your file structure: server/models/Books.js
 const Book = require("./models/Books"); 
 
@@ -22,11 +22,11 @@ const PORT = process.env.PORT || 5074;
 // --- Middleware ---
 
 // Configure CORS to explicitly allow requests from your frontend's origin
-// This is crucial for your frontend (running on 5174) to communicate with your backend (on 5074)
+// IMPORTANT FIX: Changed origin to http://localhost:5173 to match your frontend's current actual port.
 app.use(cors({
-    origin: 'http://localhost:5174', // <--- IMPORTANT: This MUST match your frontend's exact URL
-    methods: ['GET', 'POST', 'PUT', 'DELETE'], // Explicitly allowed HTTP methods
-    credentials: true // Allow cookies to be sent (if you implement authentication later)
+    origin: 'http://localhost:5173', // <--- THIS IS THE CRUCIAL CHANGE FOR YOUR CORS ERROR
+    methods: ['GET', 'POST', 'PUT', 'DELETE'], 
+    credentials: true 
 }));
 
 // Middleware to parse JSON bodies from incoming requests
@@ -34,7 +34,6 @@ app.use(express.json());
 
 // --- MongoDB Connection ---
 
-// Connect to MongoDB using Mongoose
 mongoose
     .connect(process.env.MONGO_URI, {
         // These options are deprecated in newer Mongoose versions but generally harmless
@@ -48,7 +47,7 @@ mongoose
         console.error("Error connecting to MongoDB:", error);
         // It's often better to let the server attempt to start even without DB connection
         // and handle DB errors per request, but existing `process.exit(1)` is fine if intended
-        // process.exit(1); // Exits the process if initial connection fails
+        // process.exit(1); 
     });
 
 // --- API Routes for Books ---
