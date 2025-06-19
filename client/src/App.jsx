@@ -3,26 +3,26 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 
 import Home from "./pages/Home";
 import AddBook from "./pages/AddBook";
-import EditBook from "./components/EditBook";
+import EditBook from "./components/EditBook"; // Confirmed path based on your provided App.jsx
 import BorrowBook from "./pages/BorrowBook";
 import ReturnBook from "./pages/ReturnBook";
 
 function App() {
   return (
     <Router>
-      <div className="min-h-screen flex flex-col bg-gray-50">
-        <nav className="w-full bg-white shadow-md">
+      <div className="min-h-screen flex flex-col bg-[#0F172A]"> {/* Adjusted background */}
+        <nav className="w-full bg-[#1E293B] shadow-md"> {/* Adjusted background */}
           <div className="max-w-5xl mx-auto flex justify-between items-center px-6 py-4">
-            <h1 className="text-2xl font-bold text-gray-800">MyBook Store</h1>
+            <h1 className="text-2xl font-bold text-white">MyBook Store</h1> {/* Adjusted text color */}
             <div className="space-x-6">
-              <Link to="/" className="text-blue-600 hover:text-blue-800 font-medium">Home</Link>
-              <Link to="/add" className="text-blue-600 hover:text-blue-800 font-medium">Add Book</Link>
+              <Link to="/" className="text-blue-400 hover:text-blue-300 font-medium transition duration-200">Home</Link> {/* Adjusted link color */}
+              <Link to="/add" className="text-blue-400 hover:text-blue-300 font-medium transition duration-200">Add Book</Link> {/* Adjusted link color */}
             </div>
           </div>
         </nav>
 
         <main className="flex-1 flex justify-center items-start">
-          <div className="w-full max-w-5xl bg-white rounded-lg shadow p-8 mt-8">
+          <div className="w-full max-w-5xl bg-[#1E293B] rounded-lg shadow p-8 mt-8"> {/* Adjusted background */}
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/add" element={<AddBook />} />
@@ -37,4 +37,4 @@ function App() {
   );
 }
 
-export default App; // ✅ Make sure this line exists
+export default App;

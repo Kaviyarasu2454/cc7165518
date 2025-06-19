@@ -1,1 +1,29 @@
-[]
+[
+  {
+    "name": "Kavi",
+    "roll": "Full",
+    "department": "ECE",
+    "email": "Kavi@example.api",
+    "Section": "A",
+    "id": 1750215033075,
+    "available": true
+  },
+  {
+    "name": "Kavin",
+    "roll": "Full",
+    "department": "ECE",
+    "email": "Kavi@example.api",
+    "Section": "A",
+    "id": 1750215063200,
+    "available": true
+  },
+  {
+    "name": "Kavin Raj",
+    "roll": "Full",
+    "department": "ECE",
+    "email": "Kavinraj@example.api",
+    "Section": "A",
+    "id": 1750215076289,
+    "available": true
+  }
+]
