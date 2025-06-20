@@ -9,11 +9,11 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 
 // Import the Book model 
-const Book = require("./models/Books"); // Assuming your book model is in models/Books.js
-// NEW: Import the User model
+const Book = require("./models/Books"); 
+// Import the User model
 const User = require("./models/User");
 
-// NEW: Import authentication routes and middleware
+// Import authentication routes and middleware
 const authRoutes = require("./routes/authRoutes"); 
 const { protect } = require("./middleware/authMiddleware");
 
@@ -23,12 +23,28 @@ const app = express();
 // Define the port the server will listen on
 const PORT = process.env.PORT || 5074; 
 
-// --- Middleware ---
+// --- CORS Configuration (Dynamic for Local and Deployed) ---
+// Define all allowed origins here
+const allowedOrigins = [
+    'http://localhost:5173',          // Your local frontend development server
+    'https://cc7165518.vercel.app',   // Your deployed Vercel frontend URL
+    // Add any other deployed Vercel preview URLs if needed (e.g., branch deployments)
+    // If you add a custom domain, add it here too: 'https://yourcustomdomain.com'
+];
 
-// Configure CORS to explicitly allow requests from your frontend's origin
-// IMPORTANT: Set to 5173 as per your current frontend port based on the error.
 app.use(cors({
-    origin: 'https://cc7165518.vercel.app', 
+    origin: function (origin, callback) {
+        // If the origin is not provided (e.g., for same-origin requests or tools like Postman/Curl)
+        // or if the origin is in our allowed list, allow the request.
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            // Otherwise, block the request and return an error
+            const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}`;
+            console.error(msg); // Log the specific origin being blocked
+            callback(new Error(msg), false);
+        }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 }));
@@ -48,8 +64,7 @@ mongoose
     });
 
 // --- Authentication Routes ---
-// All routes starting with /api/auth will use authRoutes (e.g., /api/auth/register, /api/auth/login)
-app.use("/api/auth", authRoutes); // NEW: Use authentication routes
+app.use("/api/auth", authRoutes); 
 
 // --- API Routes for Books ---
 
@@ -59,7 +74,6 @@ app.get("/", (req, res) => {
 });
 
 // GET all books (accessible publicly without authentication)
-// You might later want to protect this too, but for now, it's public for the intro page
 app.get("/api/books", async (req, res) => {
     try {
         const books = await Book.find(); 
@@ -70,11 +84,10 @@ app.get("/api/books", async (req, res) => {
     }
 });
 
-// NEW: Apply protection middleware to all subsequent routes (book CRUD, borrow, return)
-// This means any route defined *after* this line will require a valid JWT in the Authorization header.
+// Apply protection middleware to all subsequent routes
 app.use(protect); 
 
-// GET a single book by ID (now protected)
+// Protected routes for book management
 app.get("/api/books/:id", async (req, res) => { 
     try {
         const book = await Book.findById(req.params.id);
@@ -92,7 +105,6 @@ app.get("/api/books/:id", async (req, res) => {
     }
 });
 
-// POST a new book (now protected)
 app.post("/api/books", async (req, res) => { 
     try {
         const newBook = new Book(req.body); 
@@ -107,7 +119,6 @@ app.post("/api/books", async (req, res) => {
     }
 });
 
-// PUT (Update) an existing book by ID (now protected)
 app.put("/api/books/:id", async (req, res) => { 
     try {
         const updatedBook = await Book.findByIdAndUpdate(
@@ -133,7 +144,6 @@ app.put("/api/books/:id", async (req, res) => {
     }
 });
 
-// DELETE a book by ID (now protected)
 app.delete("/api/books/:id", async (req, res) => { 
     try {
         const deletedBook = await Book.findByIdAndDelete(req.params.id);
@@ -151,7 +161,6 @@ app.delete("/api/books/:id", async (req, res) => {
     }
 });
 
-// PUT route for borrowing a book (now protected)
 app.put("/api/books/:id/borrow", async (req, res) => { 
     try {
         const { name, department, section, borrowDate } = req.body.borrowInfo; 
@@ -182,7 +191,6 @@ app.put("/api/books/:id/borrow", async (req, res) => {
     }
 });
 
-// PUT route for returning a book (now protected)
 app.put("/api/books/:id/return", async (req, res) => { 
     try {
         const updatedBook = await Book.findByIdAndUpdate(
