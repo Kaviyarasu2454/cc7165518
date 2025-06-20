@@ -28,7 +28,7 @@ const PORT = process.env.PORT || 5074;
 // Configure CORS to explicitly allow requests from your frontend's origin
 // IMPORTANT: Set to 5173 as per your current frontend port based on the error.
 app.use(cors({
-    origin: 'http://localhost:5173', 
+    origin: 'https://cc7165518.vercel.app', 
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 }));
